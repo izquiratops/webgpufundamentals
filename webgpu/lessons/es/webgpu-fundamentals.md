@@ -27,67 +27,65 @@ WebGPU es una API que permite hacer dos cosas:
 Nada más!
 
 El resto va a depender de ti. Lo mismo sucede al aprender un nuevo lenguaje de programación
-como JavaScript, Rust o C++. Primero aprendes los fundamentos y luego es cosa tuya utilizarlos
-para resolver problemas.
+como JavaScript, Rust o C++. Comienzas por entender los conceptos básicos, y después está
+en tus manos aplicarlos para solucionar desafíos.
 
 WebGPU es una API de bajo nivel. Aunque puedas crear pequeños ejemplos, será habitual
 acabar con proyectos que requieran mucho código y formas rigurosas de organizar datos.
-Por ejemplo, [three.js](https://threejs.org) es una librería muy popular que utiliza WebGPU,
-su peso ronda los 600 kilobytes tras ser minificada. Se cuenta tan sólo la parte más
-<!-- TODO: laoders? controlers? -->
-esencial, excluyendo funcionalidades como loaders, controlers o post procesado.
-Otro caso es [TensorFlow usando WebGPU como backend](https://github.com/tensorflow/tfjs/tree/master/tfjs-backend-webgpu),
+Como ejemplo, existe [three.js](https://threejs.org), una librería muy popular que hace uso de WebGPU.
+Tras ser minificada, su tamaño ronda los 600 kilobytes, incluyendo únicamente las partes esenciales y
+dejando de lado funcionalidades como loaders, controladores o post procesado.
+Sucede igual con [TensorFlow usando WebGPU en el backend](https://github.com/tensorflow/tfjs/tree/master/tfjs-backend-webgpu),
 pesando alrededor de 500 kilobytes.
 
-Por tanto, si tu objetivo es mostrar algo en pantalla es preferible utilizar una librería
+Por tanto, si tu objetivo es mostrar algo en pantalla es más recomendable utilizar una librería
 que ya proporcione esa gran cantidad de código, en lugar de tener que escribirlo por ti mismo.
 
-No obstante, quizás necesites una solución a medida donde las librerías no ayuden,
-o quieras modificar una de esas librerías, o simplemente sientas curiosidad por cómo funciona WebGPU.
-Si te encuentras en uno de estos casos sigue leyendo!
+Sin embargo, es posible que requieras una solución personalizada cuando las librerías no te sirvan. 
+También puede ser que desees realizar cambios en alguna de estas librerías o simplemente tengas
+curiosidad acerca del funcionamiento de WebGPU. Si te encuentras en cualquiera de estas situaciones,
+¡continúa leyendo!
 
-# Getting Started
+# Primeros pasos
 
-It's hard to decide where to start. At certain level, WebGPU is a very simple
-system. All it does is run 3 types of functions on the GPU. Vertex Shaders,
-Fragment Shaders, Compute Shaders.
+Es complicado decidir dónde empezar. En cierta forma WebGPU es una herramienta sencilla, 
+todo lo que hace es correr 3 tipos de métodos:
+Vertex Shaders, Fragment Shaders y Compute Shaders.
 
-A Vertex Shader computes vertices. The shader returns vertex positions. For every group of 3 vertices, it returns a triangle drawn between those 3 positions [^primitives]
+Un Vertex Shader calcula vértices. El shader devuelve sus posiciones. Para cada grupo de 3 vertices
+se devuelve un triangulo comprendido en esas 3 posiciones [^primitives]
 
-[^primitives]: There are actually 5 modes.
+<!-- TODO: comprueba que esto está bien descrito! -->
+[^primitives]: Realmente hay 5 modos:
 
-    * `'point-list'`: for each position, draw a point
-    * `'line-list'`: for each 2 positions, draw a line
-    * `'line-strip'`: draw lines connecting the newest point to the previous point
-    * `'triangle-list'`: for each 3 positions, draw a triangle (**default**)
-    * `'triangle-strip'`: for each new position, draw a triangle from it and the last 2 positions
+    * `'point-list'`: dibuja un punto por cada posición
+    * `'line-list'`: dibuja una linea por cada 2 posiciones
+    * `'line-strip'`: dibuja lineas que conecten cada nuevo punto con su anterior
+    * `'triangle-list'`: dibuja un triangulo por cada 3 posiciones (**usado por defecto**)
+    * `'triangle-strip'`: dibuja un triangulo para cada nueva posición y sus 2 últimas posiciones
 
-A Fragment Shader computes colors [^fragment-output]. When a triangle is drawn, for each pixel
-to be drawn the GPU calls your fragment shader. The fragment shader then returns a
-color.
+Un Fragment Shader calcula colores [^fragment-output]. La GPU llama al Fragment Shader en cada píxel
+comprendido por el triangulo calculado en el Vertex Shader, cada llamada al Fragment Shader devuelve
+el color que le corresponde a ese píxel.
 
-[^fragment-output]: Fragment shaders indirectly write data to textures. That data does not
-have to be colors. For example, it's common to output the direction of the surface that
-pixel represents.
+<!-- TODO: repasa esta descripción -->
+[^fragment-output]: Los Fragment Shader escriben datos en texturas. Estos datos pueden ser más cosas
+a parte de colores. Un ejemplo es la dirección de la superficie que el pixel representa.
 
-A Compute Shader is more generic. It's effectively just a function you call and
-say "execute this function N times". The GPU passes the iteration number each
-time it calls your function so you can use that number to do something unique on
-each iteration.
+Un Compute Shader es un método genérico. A diferencia de los dos anteriores, este shader corre la función que
+queramos tantas veces como sea necesario. Para cada llamada la GPU asigna un índice de iteración, de esta forma
+es posible hacer algo distinto cada vez.
 
-If you squint hard, you can think of these functions similar to the functions to
-pass to
+Podemos imaginar los Shaders como algo similar a las funciones que usamos en JavaScript como
 [`array.forEach`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach)
-or
+o
 [`array.map`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map).
-The functions you run on the GPU are just functions, just like JavaScript
-functions. The part that differs is they run on the GPU, and so to run them you
-need to copy all the data you want them to access to the GPU in the form of
-buffers and textures and they only output to those buffers and textures. 
-You need to specify in the functions which bindings or locations the function
-will look for the data. And, back in JavaScript, you need to bind the buffers and
-textures holding your data to the bindings or locations. Once you've done that you tell the GPU to execute the
-function.
+La diferencia es que corren en la GPU, mientras que en JavaScript utilizamos la CPU. Por este motivo,
+necesitamos copiar todos los datos necesarios en forma de Buffers y Texturas, que luego retornarán datos 
+exclusivamente a esos mismos Buffers y Texturas.
+Por un lado es necesario definir en las funciones los Bindings y Locations que se utilizarán para acceder a los datos.
+Por el otro, en JavaScript se definen las relaciones entre los Buffers y Texturas con los Bindings y Locations.
+<!-- TODO: falta una frase -->
 
 <a id="a-draw-diagram"></a>Maybe a picture will help. Here is a *simplified* diagram of WebGPU setup to draw triangles
 by using a vertex shader and a fragment shader
