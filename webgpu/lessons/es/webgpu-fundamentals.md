@@ -82,13 +82,13 @@ o
 [`array.map`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map)
 que usamos en JavaScript.
 La diferencia es que corren en la GPU, mientras que en JavaScript utilizamos la CPU. Por este motivo,
-necesitamos copiar todos los datos necesarios en forma de Buffers y Texturas, que luego retornarán datos 
-exclusivamente a esos mismos Buffers y Texturas.
+necesitamos copiar todos los datos necesarios en forma de búfers y texturas, que luego retornarán datos 
+exclusivamente a esos mismos búfers y texturas.
 Por un lado es necesario definir en la función los Bindings y Locations que se utilizarán para acceder a los datos.
-Por el otro, en JavaScript se definen las relaciones entre los Buffers y Texturas con los Bindings y Locations.
+Por el otro, en JavaScript se definen las relaciones entre los búfers y texturas con los Bindings y Locations.
 Finalmente se pide a la GPU ejecutar la función.
 
-<a id="a-draw-diagram"></a>Quizás una imágen ayude a entenderlo mejor. El siguiente diagrama muestra de forma
+<a id="a-draw-diagram"></a>Quizás una imagen ayude a entenderlo mejor. El siguiente diagrama muestra de forma
 simplificada la configuración para dibujar un triangulo mediante un vertex y fragment shader.
 
 <div class="webgpu_center"><img src="resources/webgpu-draw-diagram.svg" style="width: 960px;"></div>
@@ -99,37 +99,27 @@ Cosas que destacar sobre el diagrama:
   Es posible tener también un pipeline con compute shaders dentro.
 
 <!-- TODO: indirectamente? -->
-* Los recursos utilizados en los shaders como buffers, texturas o samplers se 
+* Los recursos utilizados en los shaders como búfers, texturas o samplers se 
   referencian a través de **Bind Groups**
 
 <!-- TODO: indirectamente? -->
-* El pipeline define atributos que referencian buffers a través del estado interno. 
+* El pipeline define atributos que referencian búfers a través del estado interno. 
 
-* Los atributos obtienen los datos mediante los buffers, luego los facilita al vertex shader.
+* Los atributos obtienen los datos mediante los búfers, luego los facilita al vertex shader.
 
 * El vertex shader podría pasar datos al fragment shader.
 
 <!-- TODO: indirectamente? descriptores de render pass? -->
 * El fragment shader escribe en texturas a través de descriptores de render pass.
 
-Para correr shaders en una GPU es necesario crear todos los recursos y preparar el estado
-tal y como aparece en el diagrama. <!-- TODO -->
+Al ejecutar shaders en una GPU, es necesario inicializar todos los recursos y configurar el estado tal y como aparece en el diagrama. El proceso es relativamente sencillo.
+Algo a destacar sobre los recursos en WebGPU es que puedas cambiar su contenido, pero no modificar el tamaño, uso, formato y otras propiedades. Para hacerlo no queda otra que eliminar y volver a crear esos recursos.
 
-To execute shaders on the GPU you need to create all of these resources and
-setup this state. Creation of resources is relatively straight forward. One
-interesting thing is most WebGPU resources can not be changed after creation. You
-can change their contents but not their size, usage, format, etc... If you want
-to change any of that stuff you create a new resource and destroy the old one.
+Parte del estado se prepara creando y ejecutando búfers de comandos.
+Son literalmente búfers que contienen comandos, el nombre no tiene pérdida.
+Primero se crean los codificadores, estos codificadores codifican los comandos al nuevo búfer. Al **acabar** devolverán el búfer listo, luego podrá ser **enviado** para que WebGPU corra los comandos que contiene. 
 
-Some of the state is setup by creating and then executing command buffers.
-Command buffers are literally what their name suggests. They are a buffer of
-commands. You create encoders. The encoders encode commands into the command
-buffer. You then *finish* the encoder and it gives you the command buffer it
-created. You can then *submit* that command buffer to have WebGPU execute the
-commands.
-
-Here is some pseudo code of encoding a command buffer followed by a representation of
-the command buffer that was created.
+El siguiente ejemplo muestra en seudocódigo cómo se codifica un búfer de comandos, a su lado se representa qué aspecto tendría.
 
 <div class="webgpu_center side-by-side"><div style="min-width: 300px; max-width: 400px; flex: 1 1;"><pre class="prettyprint lang-javascript"><code>{{#escapehtml}}
 encoder = device.createCommandEncoder()
