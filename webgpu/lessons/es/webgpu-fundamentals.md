@@ -28,7 +28,7 @@ Nada más!
 
 El resto va a depender de ti. Lo mismo sucede al aprender un nuevo lenguaje de programación
 como JavaScript, Rust o C++. Comienzas por entender los conceptos básicos, y después está
-en tus manos aplicarlos para solucionar desafíos.
+en tus manos aplicarlos para solucionar problemas.
 
 WebGPU es una API de bajo nivel. Aunque puedas crear pequeños ejemplos, será habitual
 acabar con proyectos que requieran mucho código y formas rigurosas de organizar datos.
@@ -52,8 +52,8 @@ Es complicado decidir dónde empezar. En cierta forma WebGPU es una herramienta 
 todo lo que hace es correr 3 tipos de métodos:
 Vertex Shaders, Fragment Shaders y Compute Shaders.
 
-Un Vertex Shader calcula vértices. El shader devuelve sus posiciones. Para cada grupo de 3 vertices
-se devuelve un triangulo comprendido en esas 3 posiciones [^primitives]
+Un Vertex Shader calcula vértices, devolviendo sus posiciones. Para cada grupo de 3 vertices
+se devuelve un triangulo formado por esas 3 posiciones [^primitives]
 
 <!-- TODO: comprueba que esto está bien descrito! -->
 [^primitives]: Realmente hay 5 modos:
@@ -76,39 +76,44 @@ Un Compute Shader es un método genérico. A diferencia de los dos anteriores, e
 queramos tantas veces como sea necesario. Para cada llamada la GPU asigna un índice de iteración, de esta forma
 es posible hacer algo distinto cada vez.
 
-Podemos imaginar los Shaders como algo similar a las funciones que usamos en JavaScript como
+Podemos imaginar los Shaders como algo similar a las funciones
 [`array.forEach`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach)
 o
-[`array.map`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map).
+[`array.map`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map)
+que usamos en JavaScript.
 La diferencia es que corren en la GPU, mientras que en JavaScript utilizamos la CPU. Por este motivo,
 necesitamos copiar todos los datos necesarios en forma de Buffers y Texturas, que luego retornarán datos 
 exclusivamente a esos mismos Buffers y Texturas.
-Por un lado es necesario definir en las funciones los Bindings y Locations que se utilizarán para acceder a los datos.
+Por un lado es necesario definir en la función los Bindings y Locations que se utilizarán para acceder a los datos.
 Por el otro, en JavaScript se definen las relaciones entre los Buffers y Texturas con los Bindings y Locations.
-<!-- TODO: falta una frase -->
+Finalmente se pide a la GPU ejecutar la función.
 
-<a id="a-draw-diagram"></a>Maybe a picture will help. Here is a *simplified* diagram of WebGPU setup to draw triangles
-by using a vertex shader and a fragment shader
+<a id="a-draw-diagram"></a>Quizás una imágen ayude a entenderlo mejor. El siguiente diagrama muestra de forma
+simplificada la configuración para dibujar un triangulo mediante un vertex y fragment shader.
 
 <div class="webgpu_center"><img src="resources/webgpu-draw-diagram.svg" style="width: 960px;"></div>
 
-What to notice about this diagram
+Cosas que destacar sobre el diagrama:
 
-* There is a **Pipeline**. It contains the vertex shader and fragment shader the
-  GPU will run. You could also have a pipeline with a compute shader.
+* Hay un **Pipeline**. Contiene el vertex y fragment shader que correrá la GPU.
+  Es posible tener también un pipeline con compute shaders dentro.
 
-* The shaders reference resources (buffers, textures, samplers) indirectly
-  through **Bind Groups**
+<!-- TODO: indirectamente? -->
+* Los recursos utilizados en los shaders como buffers, texturas o samplers se 
+  referencian a través de **Bind Groups**
 
-* The pipeline defines attributes that reference buffers indirectly through the
-  internal state
+<!-- TODO: indirectamente? -->
+* El pipeline define atributos que referencian buffers a través del estado interno. 
 
-* Attributes pull data out of buffers and feed the data into the vertex shader.
+* Los atributos obtienen los datos mediante los buffers, luego los facilita al vertex shader.
 
-* The vertex shader may feed data into the fragment shader
+* El vertex shader podría pasar datos al fragment shader.
 
-* The fragment shader writes to textures indirectly through the render pass
-  description
+<!-- TODO: indirectamente? descriptores de render pass? -->
+* El fragment shader escribe en texturas a través de descriptores de render pass.
+
+Para correr shaders en una GPU es necesario crear todos los recursos y preparar el estado
+tal y como aparece en el diagrama. <!-- TODO -->
 
 To execute shaders on the GPU you need to create all of these resources and
 setup this state. Creation of resources is relatively straight forward. One
