@@ -212,21 +212,21 @@ Necesitamos un lienzo para mostrar nuestro triángulo.
 <canvas></canvas>
 ```
 
-Then we need a `<script>` tag to hold our JavaScript.
+También una etiqueta <script> para contener nuestro JavaScript.
 
 ```html
 <canvas></canvas>
 +<script type="module">
 
-... javascript goes here ...
+... el código de javascript se escribirá aquí ...
 
 +</script>
 ```
 
-All of the JavaScript below will go inside this script tag
+Todo el código JavaScript se ubicará dentro de la etiqueta `<script>`.
 
-WebGPU is an asynchronous API so it's easiest to use in an async function. We
-start off by requesting an adaptor, and then requesting a device from the adapter.
+WebGPU es una API asíncrona, por lo que será más cómodo usarla dentro de una `async function`.
+Comenzamos solicitando un adaptador (adapter) y luego solicitamos un dispositivo (device) del adaptador.
 
 ```js
 async function main() {
@@ -240,21 +240,21 @@ async function main() {
 main();
 ```
 
-The code above is fairly self explanatory. First we request an adapter by using the
-[`?.` optional chaining operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining).
-so that if `navigator.gpu` does not exist then `adapter` will be undefined.
-If it does exist then we'll call `requestAdapter`. It turns its results asynchronously
-so we need `await`. The adapter represents a specific GPU. Some devices
-have multiple GPUs.
+El código anterior es bastante autoexplicativo. Primero solicitamos un adaptador utilizando el
+[`?.` operador de encadenamiento opcional](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining).
+De esta forma, si `navigator.gpu` resulta ser undefined, entonces `adapter` también lo será. Sin el
+operador `?.` intentaríamos acceder a una función que no existe.
+Si existe, llamaremos a `requestAdapter`. Este devuelve sus resultados de forma asíncrona, por lo que necesitamos utilizar `await`. El adaptador representa una GPU específica. Algunos dispositivos tienen múltiples GPUs.
 
-From the adapter we request the device but again use `?.` so that if adapter happens
-to be undefined then device will also be undefined.
+A través del adaptador solicitamos el dispositivo utilizando `?.` una vez más, para que si el adaptador resulta ser indefinido, el dispositivo también lo será.
 
-If the `device` not set it's likely the user has an old browser.
+Si no se encontrase ningún dispositivo, es bastante probable que el usuario esté usando un navegador antiguo.
 
 Next up we look up the canvas and create a `webgpu` context for it. This will
 let us get a texture to render to that will be used to render the canvas in the
 webpage.
+
+El siguiente paso será buscar el elemento canvas y crear un contexto `webgpu` para él. Esto nos permitirá obtener una textura en la que renderizar.
 
 ```js
   // Get a WebGPU context from the canvas and configure it
@@ -267,18 +267,17 @@ webpage.
   });
 ```
 
-Again the code above is pretty self explanatory. We get a `"webgpu"` context
-from the canvas. We ask the system what the preferred canvas format is. This
-will be either `"rgba8unorm"` or `"bgra8unorm"`. It's not really that important
-what it is but by querying it it will make things fastest for the user's system.
+Una vez más, el código es bastante autoexplicativo. Obtenemos un contexto
+`"webgpu"` a partir del elemento canvas. Definimos cuál es el formato preferido de 
+lienzo, que será `"rgba8unorm"` o `"bgra8unorm"`. No importa demasiado cuál es,
+pero consultarlo optimizará el proceso.
 
-We pass that as `format` into the webgpu canvas context by calling `configure`.
-We also pass in the `device` which associates this canvas with the device we just
-created.
+Pasamos el valor retornado como `format` al contexto del lienzo de webgpu llamando a `configure`.
+También pasamos el `device`, que asocia este lienzo con el dispositivo que acabamos de crear.
 
-Next we create a shader module. A shader module contains one or more shader
-functions. In our case we'll make 1 vertex shader function and 1 fragment shader
-function.
+A continuación, creamos un módulo de sombreador (shader module). Un módulo de sombreador
+contiene una o más funciones de sombreador. En nuestro caso, crearemos una función de
+sombreador de vértices y una función de sombreador de fragmentos.
 
 ```js
   const module = device.createShaderModule({
@@ -312,6 +311,10 @@ For now I'm hoping with a little explanation you can infer some basics.
 Above we see a function called `vs` is declared with the `@vertex` attribute.
 This designates it as a vertex shader function.
 
+Los shaders se escriben en un lenguaje llamado [WebGPU Shading Language  (WGSL)](https://gpuweb.github.io/gpuweb/wgsl/). WGSL es un lenguaje tipado del cual intentaremos abordar más detalles en [otro artículo](webgpu-wgsl.html). Por ahora, con una breve explicación mostraremos algunos conceptos básicos.
+
+En el fragmento anterior, podemos ver una función llamada `vs` que se declara con el atributo `@vertex`. Declararla así la designa como una función de sombreado de vértices.
+
 ```wgsl
       @vertex fn vs(
         @builtin(vertex_index) vertexIndex : u32
@@ -319,12 +322,7 @@ This designates it as a vertex shader function.
          ...
 ```
 
-It accepts one parameter we named `vertexIndex`. `vertexIndex` is a `u32` which
-means a *32bit unsigned integer*. It gets its value from the builtin called
-`vertex_index`. `vertex_index` is the like an iteration number, similar to `index` in
-JavaScript's `Array.map(function(value, index) { ... })`. If we tell the GPU to
-execute this function 10 times by calling `draw`, the first time `vertex_index` would be `0`, the
-2nd time it would be `1`, the 3rd time it would be `2`, etc...[^indices]
+Esta función acepta un parámetro que hemos llamado `vertexIndex`. `vertexIndex` es un `u32`, lo que significa un *entero sin signo de 32 bits*. Obtiene su valor del elemento incorporado (@builtin) llamado `vertex_index`. `vertex_index` es similar a un número de iteración, muy parecido a `index` en la función `Array.map` de JavaScript. Si le decimos a la GPU que ejecute esta función 10 veces llamando a `draw`, la primera vez que se ejecute, `vertex_index` sería `0`, la segunda vez sería `1`, la tercera vez sería `2`, y así sucesivamente...[^indices]
 
 [^indices]: We can also use in index buffer to specific `vertex_index`.
 This is covered in [the article on vertex-buffers](webgpu-vertex-buffers.html#a-index-buffers).
