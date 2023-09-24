@@ -281,7 +281,7 @@ sombreador de vértices y una función de sombreador de fragmentos.
 
 ```js
   const module = device.createShaderModule({
-    label: 'our hardcoded red triangle shaders',
+    label: 'código para los sombreadores del triángulo rojo',
     code: `
       @vertex fn vs(
         @builtin(vertex_index) vertexIndex : u32
@@ -302,15 +302,6 @@ sombreador de vértices y una función de sombreador de fragmentos.
   });
 ```
 
-Shaders are written in a language called
-[WebGPU Shading Language (WGSL)](https://gpuweb.github.io/gpuweb/wgsl/) which is
-often pronounced wig-sil. WGSL is a strongly typed language
-which we'll try to go over more details in [another article](webgpu-wgsl.html).
-For now I'm hoping with a little explanation you can infer some basics.
-
-Above we see a function called `vs` is declared with the `@vertex` attribute.
-This designates it as a vertex shader function.
-
 Los shaders se escriben en un lenguaje llamado [WebGPU Shading Language  (WGSL)](https://gpuweb.github.io/gpuweb/wgsl/). WGSL es un lenguaje tipado del cual intentaremos abordar más detalles en [otro artículo](webgpu-wgsl.html). Por ahora, con una breve explicación mostraremos algunos conceptos básicos.
 
 En el fragmento anterior, podemos ver una función llamada `vs` que se declara con el atributo `@vertex`. Declararla así la designa como una función de sombreado de vértices.
@@ -324,84 +315,79 @@ En el fragmento anterior, podemos ver una función llamada `vs` que se declara c
 
 Esta función acepta un parámetro que hemos llamado `vertexIndex`. `vertexIndex` es un `u32`, lo que significa un *entero sin signo de 32 bits*. Obtiene su valor del elemento incorporado (@builtin) llamado `vertex_index`. `vertex_index` es similar a un número de iteración, muy parecido a `index` en la función `Array.map` de JavaScript. Si le decimos a la GPU que ejecute esta función 10 veces llamando a `draw`, la primera vez que se ejecute, `vertex_index` sería `0`, la segunda vez sería `1`, la tercera vez sería `2`, y así sucesivamente...[^indices]
 
-[^indices]: We can also use in index buffer to specific `vertex_index`.
-This is covered in [the article on vertex-buffers](webgpu-vertex-buffers.html#a-index-buffers).
+[^indices]: También podemos usar un búfer de índices para especificar el `índice_de_vertice`.
+Esto se explica en [el artículo sobre búfers de vértices](webgpu-vertex-buffers.html#a-index-buffers).
 
-Our `vs` function is declared as returning a `vec4f` which is vector of four
-32bit floating point values. Think of it as an array of 4 values or an object
-with 4 properties like `{x: 0, y: 0, z: 0, w: 0}`. This returned value will be
-assigned to the `position` builtin. In "triangle-list" mode, every 3 times the
-vertex shader is executed a triangle will be drawn connecting the 3 `position`
-values we return.
+Nuestra función `vs` se declara devolviendo un `vec4f`, que es un vector de cuatro
+valores de punto flotante de 32 bits. Piénsalo como un vector de 4 valores o un objeto
+con 4 propiedades como `{x: 0, y: 0, z: 0, w: 0}`. El valor devuelto se asignará a la
+variable `position`. En el modo "triangle-list", cada vez que se ejecute el **sombreador
+de vértices** se dibujará un triángulo conectando los 3 valores de `position` que devolvemos.
 
 Positions in WebGPU need to be returned in *clip space* where X goes from -1.0
 on the left to +1.0 on the right, Y goes from -1.0 at the bottom to +1.0 at the
 top. This is true regardless of the size of the texture we are drawing to.
 
+Las posiciones en WebGPU deben devolverse en *espacio de recorte* (*clip space*). Para ambas dimensiones, los
+valores se comprenden entre -1.0 a +1.0. 
+En el eje X, -1.0 representa la parte más a la izquierda, y +1.0 la parte más a la derecha.
+En el eje Y, -1.0 representa la parte más inferior y +1.0 la parte más superior.
+Esto es cierto independientemente del tamaño de la textura a la que estamos dibujando.
+
 <div class="webgpu_center"><img src="resources/clipspace.svg" style="width: 500px"></div>
 
-The `vs` function declares an array of 3 `vec2f`s. Each `vec2f` consists of two
-32bit floating point values. The code then fills out that array with 3 `vec2f`s.
+La función `vs` declara un vector de 3 `vec2f`, donde cada `vec2f` consta de dos valores de punto flotante de 32 bits. Luego, el código llena ese vector con 3 `vec2f`.
 
 ```wgsl
         let pos = array(
-          vec2f( 0.0,  0.5),  // top center
-          vec2f(-0.5, -0.5),  // bottom left
-          vec2f( 0.5, -0.5)   // bottom right
+          vec2f( 0.0,  0.5),  // arriba y centrado horizontalmente
+          vec2f(-0.5, -0.5),  // abajo a la izquierda
+          vec2f( 0.5, -0.5)   // abajo a la derecha
         );
 ```
 
-Finally it uses `vertexIndex` to return one of the 3 values from the array.
-Since the function requires 4 floating point values for its return type, and
-since `pos` is an array of `vec2f`, the code supplies `0.0` and `1.0` for
-the remaining 2 values.
+Finalmente, utiliza `vertexIndex` para devolver uno de los 3 valores del conjunto. Dado que la
+función requiere 4 valores de punto flotante como tipo de retorno (`vec4f`), y `pos` es un conjunto
+de tipo `vec2f`, el código añade `0.0` y `1.0` para los 2 valores restantes.
 
 ```wgsl
         return vec4f(pos[vertexIndex], 0.0, 1.0);
 ```
 
-The shader module also declares a function called `fs` that is declared with
-`@fragment` attribute making it a fragment shader function.
+El módulo de sombreador también declara una función llamada `fs` que se declara con el atributo
+`@fragment`, lo que la convierte en una función de sombreador de fragmentos.
 
 ```wgsl
       @fragment fn fs() -> @location(0) vec4f {
 ```
 
-This function takes no parameters and returns a `vec4f` at `location(0)`.
-This means it will write to the first render target. We'll make the first
-render target our canvas later.
+Esta función no toma parámetros y devuelve un `vec4f` en `location(0)`. Esto significa que escribirá
+en el primer destino de renderizado (render target). Más adelante, haremos que el primer destino de renderizado sea
+nuestro lienzo.
 
 ```wgsl
         return vec4f(1, 0, 0, 1);
 ```
 
-The code returns `1, 0, 0, 1` which is red. Colors in WebGPU are usually
-specified as floating point values from `0.0` to `1.0` where the 4 values above
-correspond to red, green, blue, and alpha respectively.
+El código devuelve `1, 0, 0, 1`, es decir, el color rojo. En WebGPU, los colores se especifican 
+como valores de punto flotante de `0.0` a `1.0`, donde cada uno de los valores corresponden a
+rojo, verde, azul y alfa respectivamente.
 
-When the GPU rasterizes the triangle (draws it with pixels), it will call
-the fragment shader to find out what color to make each pixel. In our case
-we're just returning red.
+Cuando la GPU rasteriza el triángulo (lo dibuja con píxeles), llama al sombreador de fragmentos
+para determinar de qué color pintar cada píxel. En nuestro caso, simplemente estamos devolviendo rojo.
 
-One more thing to note is the `label`. Nearly every object you can create with
-WebGPU can take a `label`. Labels are entirely optional but it's considered
-*best practice* to label everything you make. The reason is, when you get an
-error, most WebGPU implementations will print an error message that includes the
-labels of the things related to the error.
+Otra cosa importante es la etiqueta `label`. Casi todos los objetos que puedes crear en WebGPU pueden
+tener una etiqueta. Las etiquetas son completamente opcionales, pero se considera una *buena práctica*. 
+De esta manera, cuando obtienes un error, las implementaciones de WebGPU imprimirán un mensaje que incluye
+las etiqueta relacionada con el error.
 
-In a normal app you'd have 100s or 1000s of buffers, textures, shader modules,
-pipelines, etc... If you get an error like `"WGSL syntax error in shaderModule
-at line 10"`, if you have 100 shader modules, which one got the error? If you
-label the module then you'll get an error more like `"WGSL syntax error in
-shaderModule('our hardcoded red triangle shaders') at line 10` which is a way
-more useful error message and will save you a ton of time tracking down the
-issue.
+En una aplicación normal, tendrías cientos o miles de búferes, texturas, módulos de sombreador, canalizaciones, etc. Si obtienes un error como `"Error de sintaxis WGSL en shaderModule en la línea 10"`, ¿cuál de los 100 módulos de sombreador causó el error? Si etiquetas el módulo, obtendrás un mensaje de error más útil como `"Error de sintaxis WGSL en shaderModule('nuestros sombreadores de triángulo rojo codificados') en la línea 10"`, lo cual es mucho más informativo y te ahorrará mucho tiempo investigando la causa del problema.
 
-Now that we've created a shader module, we next need to make a render pipeline
+Ahora que hemos creado un módulo de sombreador, lo siguiente que necesitamos hacer es crear una canalización (pipeline) de renderizado.
 
 ```js
   const pipeline = device.createRenderPipeline({
-    label: 'our hardcoded red triangle pipeline',
+    label: 'código para la canalización del triángulo rojo',
     layout: 'auto',
     vertex: {
       module,
