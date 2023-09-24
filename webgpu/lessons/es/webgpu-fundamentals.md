@@ -41,14 +41,14 @@ pesando alrededor de 500 kilobytes.
 Por tanto, si tu objetivo es mostrar algo en pantalla es más recomendable utilizar una librería
 que ya proporcione esa gran cantidad de código, en lugar de tener que escribirlo por ti mismo.
 
-Sin embargo, es posible que requieras una solución personalizada cuando las librerías no te sirvan. 
+Sin embargo, es posible que requieras una solución personalizada cuando las librerías no te sirvan.
 También puede ser que desees realizar cambios en alguna de estas librerías o simplemente tengas
 curiosidad acerca del funcionamiento de WebGPU. Si te encuentras en cualquiera de estas situaciones,
 ¡continúa leyendo!
 
 # Primeros pasos
 
-Es complicado decidir dónde empezar. En cierta forma WebGPU es una herramienta sencilla, 
+Es complicado decidir dónde empezar. En cierta forma WebGPU es una herramienta sencilla,
 todo lo que hace es correr 3 tipos de métodos:
 Vertex Shaders, Fragment Shaders y Compute Shaders.
 
@@ -82,7 +82,7 @@ o
 [`array.map`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map)
 que usamos en JavaScript.
 La diferencia es que corren en la GPU, mientras que en JavaScript utilizamos la CPU. Por este motivo,
-necesitamos copiar todos los datos necesarios en forma de búfers y texturas, que luego retornarán datos 
+necesitamos copiar todos los datos necesarios en forma de búfers y texturas, que luego retornarán datos
 exclusivamente a esos mismos búfers y texturas.
 Por un lado es necesario definir en la función los Bindings y Locations que se utilizarán para acceder a los datos.
 Por el otro, en JavaScript se definen las relaciones entre los búfers y texturas con los Bindings y Locations.
@@ -99,11 +99,11 @@ Cosas que destacar sobre el diagrama:
   Es posible tener también un pipeline con compute shaders dentro.
 
 <!-- TODO: indirectamente? -->
-* Los recursos utilizados en los shaders como búfers, texturas o samplers se 
+* Los recursos utilizados en los shaders como búfers, texturas o samplers se
   referencian a través de **Bind Groups**
 
 <!-- TODO: indirectamente? -->
-* El pipeline define atributos que referencian búfers a través del estado interno. 
+* El pipeline define atributos que referencian búfers a través del estado interno.
 
 * Los atributos obtienen los datos mediante los búfers, luego los facilita al vertex shader.
 
@@ -117,7 +117,7 @@ Algo a destacar sobre los recursos en WebGPU es que puedas cambiar su contenido,
 
 Parte del estado se prepara creando y ejecutando búfers de comandos.
 Son literalmente búfers que contienen comandos, el nombre no tiene pérdida.
-Primero se crean los codificadores, estos codificadores codifican los comandos al nuevo búfer. Al **acabar** devolverán el búfer listo, luego podrá ser **enviado** para que WebGPU corra los comandos que contiene. 
+Primero se crean los codificadores, estos codificadores codifican los comandos al nuevo búfer. Al **acabar** devolverán el búfer listo, luego podrá ser **enviado** para que WebGPU corra los comandos que contiene.
 
 El siguiente ejemplo muestra en seudocódigo cómo se codifica un búfer de comandos, a su lado se representa qué aspecto tendría.
 
@@ -158,77 +158,75 @@ commandBuffer = encoder.finish();
 <div><img src="resources/webgpu-command-buffer.svg" style="width: 300px;"></div>
 </div>
 
-Once you create a command buffer you can *submit* to be executed
+Una vez que hayas creado un búfer de comandos en WebGPU, el siguiente paso es *enviarlo* para su ejecución
 
 ```js
 device.submit([commandBuffer]);
 ```
 
-The diagram above represent the state at some `draw` command in the command
-buffer. Executing the commands will setup the *internal state* and then the
-*draw* command will tell the GPU to execute a vertex shader (and indirectly a
-fragment shader). The `dispatchWorkgroup` command will tell the GPU to execute a
-compute shader.
+El diagrama de encima representa el estado de un comando "draw" dentro del búfer
+de comandos. Al ejecutar estos comandos, se configura el *estado interno* de la GPU.
+En concreto, el comando "draw" instruye a la GPU a ejecutar un sombreador de vértices
+y, de forma indirecta, un sombreador de fragmentos. 
+Por otro lado, el comando `dispatchWorkgroup` se utiliza para indicar a la GPU que ejecute
+un sombreador de cómputo.
 
-I hope that gave some mental image of the state you need to set up. Like
-mentioned above, WebGPU has 2 basic things it can do
+Espero que eso te haya dado una imagen mental del estado que necesitas configurar.
+Como se mencionó anteriormente, WebGPU tiene 2 cosas básicas que puede hacer:
 
-1. [Draw triangles/points/lines to textures](#a-drawing-triangles-to-textures)
+1. [Dibujar triángulos/puntos/líneas en texturas](#a-drawing-triangles-to-textures)
 
-2. [Run computations on the GPU](#a-run-computations-on-the-gpu)
+2. [Ejecutar cálculos en la GPU](#a-run-computations-on-the-gpu)
 
-We'll go over a small example of doing each of those things. Other
-articles will show the various ways of providing data to these things. Note that
-this will be very basic. We need to build up a foundation of these basics. Later
-we'll show how to use them to do things people typically do with GPUs like 2D
-graphics, 3D graphics, etc...
+Exploraremos un pequeño ejemplo de cómo hacer cada una de esas cosas.
+Otros artículos mostrarán las diversas formas de proporcionar datos a estas funciones.
+Ten en cuenta que esto será muy básico. Necesitamos construir una base con estos
+conceptos fundamentales. Más adelante, mostraremos cómo utilizarlos para realizar tareas
+que las personas suelen hacer con las GPUs, como gráficos 2D, gráficos 3D, etc.
 
-# <a id="a-drawing-triangles-to-textures"></a>Drawing triangles to textures
+# <a id="a-drawing-triangles-to-textures"></a>Dibujando triángulos en texturas
 
-WebGPU can draw triangles to [textures](webgpu-textures.html). For the purpose
-of this article, a texture is a 2d rectangle of pixels.[^textures] The `<canvas>` element
-represents a texture on a webpage. In WebGPU we can ask the canvas for a texture
-and then render to that texture.
+WebGPU puede dibujar triángulos en [texturas](webgpu-textures.html). Para el propósito de
+este artículo, una textura es un rectángulo 2D de píxeles.[^textures] El elemento `<canvas>`
+se utiliza para representar una textura en una página web. En WebGPU, podemos solicitar al lienzo (`<canvas>`) la textura para luego renderizar en ella.
 
-[^textures]: Textures can also be 3d rectangles of pixels, cube maps (6 squares of pixels
-that form a cube), and a few other things but the most common textures are 2d rectangles of pixels.
+[^textures]: Las texturas también pueden ser rectángulos 3D de píxeles, mapas de cubos (6 cuadrados de píxeles que forman un cubo) y algunas otras cosas, pero las texturas más comunes son rectángulos 2D de píxeles.
 
-To draw triangles with WebGPU we have to supply 2 "shaders". Again, Shaders
-are functions that run on the GPU. These 2 shaders are
+Para dibujar triángulos con WebGPU, debemos proporcionar 2 sombreadores. Una vez más, los sombreadores son funciones que se ejecutan en la GPU. Estos 2 sombreadores son:
 
-1. Vertex Shaders
+1. Sombreadores de Vértices
 
-   Vertex shaders are functions that compute vertex positions for drawing
-   triangles/lines/points
+    Los sombreadores de vértices son funciones que calculan las posiciones de los vértices
+    para dibujar triángulos/líneas/puntos.
 
-2. Fragment Shaders
+2. Sombreadores de Fragmentos
 
-   Fragment shaders are functions that compute the color (or other data)
-   for each pixel to be drawn/rasterized when drawing triangles/lines/points
+    Los sombreadores de fragmentos son funciones que calculan el color (u otros datos) para
+    cada píxel que se va a dibujar/rasterizar al dibujar triángulos/líneas/puntos.
 
-Let's start with a very small WebGPU program to draw a triangle.
+Comencemos con un pequeño programa de WebGPU para dibujar un triángulo.
 
-We need a canvas to display our triangle
+Necesitamos un lienzo para mostrar nuestro triángulo.
 
 ```html
 <canvas></canvas>
 ```
 
-Then we need a `<script>` tag to hold our JavaScript.
+También una etiqueta `<script>` para contener nuestro JavaScript.
 
 ```html
 <canvas></canvas>
 +<script type="module">
 
-... javascript goes here ...
+... el código de javascript se escribirá aquí ...
 
 +</script>
 ```
 
-All of the JavaScript below will go inside this script tag
+Todo el código JavaScript se ubicará dentro de la etiqueta `<script>`.
 
-WebGPU is an asynchronous API so it's easiest to use in an async function. We
-start off by requesting an adaptor, and then requesting a device from the adapter.
+WebGPU es una API asíncrona, por lo que será más cómodo usarla dentro de una `async function`.
+Comenzamos solicitando un adaptador (adapter) y luego solicitamos un dispositivo (device) del adaptador.
 
 ```js
 async function main() {
@@ -242,21 +240,21 @@ async function main() {
 main();
 ```
 
-The code above is fairly self explanatory. First we request an adapter by using the
-[`?.` optional chaining operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining).
-so that if `navigator.gpu` does not exist then `adapter` will be undefined.
-If it does exist then we'll call `requestAdapter`. It turns its results asynchronously
-so we need `await`. The adapter represents a specific GPU. Some devices
-have multiple GPUs.
+El código anterior es bastante autoexplicativo. Primero solicitamos un adaptador utilizando el
+[`?.` operador de encadenamiento opcional](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining).
+De esta forma, si `navigator.gpu` resulta ser undefined, entonces `adapter` también lo será. Sin el
+operador `?.` intentaríamos acceder a una función que no existe.
+Si existe, llamaremos a `requestAdapter`. Este devuelve sus resultados de forma asíncrona, por lo que necesitamos utilizar `await`. El adaptador representa una GPU específica. Algunos dispositivos tienen múltiples GPUs.
 
-From the adapter we request the device but again use `?.` so that if adapter happens
-to be undefined then device will also be undefined.
+A través del adaptador solicitamos el dispositivo utilizando `?.` una vez más, para que si el adaptador resulta ser indefinido, el dispositivo también lo será.
 
-If the `device` not set it's likely the user has an old browser.
+Si no se encontrase ningún dispositivo, es bastante probable que el usuario esté usando un navegador antiguo.
 
 Next up we look up the canvas and create a `webgpu` context for it. This will
 let us get a texture to render to that will be used to render the canvas in the
 webpage.
+
+El siguiente paso será buscar el elemento canvas y crear un contexto `webgpu` para él. Esto nos permitirá obtener una textura en la que renderizar.
 
 ```js
   // Get a WebGPU context from the canvas and configure it
@@ -269,18 +267,17 @@ webpage.
   });
 ```
 
-Again the code above is pretty self explanatory. We get a `"webgpu"` context
-from the canvas. We ask the system what the preferred canvas format is. This
-will be either `"rgba8unorm"` or `"bgra8unorm"`. It's not really that important
-what it is but by querying it it will make things fastest for the user's system.
+Una vez más, el código es bastante autoexplicativo. Obtenemos un contexto
+`"webgpu"` a partir del elemento canvas. Definimos cuál es el formato preferido de 
+lienzo, que será `"rgba8unorm"` o `"bgra8unorm"`. No importa demasiado cuál es,
+pero consultarlo optimizará el proceso.
 
-We pass that as `format` into the webgpu canvas context by calling `configure`.
-We also pass in the `device` which associates this canvas with the device we just
-created.
+Pasamos el valor retornado como `format` al contexto del lienzo de webgpu llamando a `configure`.
+También pasamos el `device`, que asocia este lienzo con el dispositivo que acabamos de crear.
 
-Next we create a shader module. A shader module contains one or more shader
-functions. In our case we'll make 1 vertex shader function and 1 fragment shader
-function.
+A continuación, creamos un módulo de sombreador (shader module). Un módulo de sombreador
+contiene una o más funciones de sombreador. En nuestro caso, crearemos una función de
+sombreador de vértices y una función de sombreador de fragmentos.
 
 ```js
   const module = device.createShaderModule({
@@ -314,6 +311,10 @@ For now I'm hoping with a little explanation you can infer some basics.
 Above we see a function called `vs` is declared with the `@vertex` attribute.
 This designates it as a vertex shader function.
 
+Los shaders se escriben en un lenguaje llamado [WebGPU Shading Language  (WGSL)](https://gpuweb.github.io/gpuweb/wgsl/). WGSL es un lenguaje tipado del cual intentaremos abordar más detalles en [otro artículo](webgpu-wgsl.html). Por ahora, con una breve explicación mostraremos algunos conceptos básicos.
+
+En el fragmento anterior, podemos ver una función llamada `vs` que se declara con el atributo `@vertex`. Declararla así la designa como una función de sombreado de vértices.
+
 ```wgsl
       @vertex fn vs(
         @builtin(vertex_index) vertexIndex : u32
@@ -321,12 +322,7 @@ This designates it as a vertex shader function.
          ...
 ```
 
-It accepts one parameter we named `vertexIndex`. `vertexIndex` is a `u32` which
-means a *32bit unsigned integer*. It gets its value from the builtin called
-`vertex_index`. `vertex_index` is the like an iteration number, similar to `index` in
-JavaScript's `Array.map(function(value, index) { ... })`. If we tell the GPU to
-execute this function 10 times by calling `draw`, the first time `vertex_index` would be `0`, the
-2nd time it would be `1`, the 3rd time it would be `2`, etc...[^indices]
+Esta función acepta un parámetro que hemos llamado `vertexIndex`. `vertexIndex` es un `u32`, lo que significa un *entero sin signo de 32 bits*. Obtiene su valor del elemento incorporado (@builtin) llamado `vertex_index`. `vertex_index` es similar a un número de iteración, muy parecido a `index` en la función `Array.map` de JavaScript. Si le decimos a la GPU que ejecute esta función 10 veces llamando a `draw`, la primera vez que se ejecute, `vertex_index` sería `0`, la segunda vez sería `1`, la tercera vez sería `2`, y así sucesivamente...[^indices]
 
 [^indices]: We can also use in index buffer to specific `vertex_index`.
 This is covered in [the article on vertex-buffers](webgpu-vertex-buffers.html#a-index-buffers).
@@ -457,12 +453,12 @@ We'll wait to fill in which texture we actually want to render to. For now,
 we setup a clear value of semi-dark gray, and a `loadOp` and `storeOp`.
 `loadOp: 'clear'` specifies to clear the texture to the clear value before
 drawing. The other option is `'load'` which means load the existing contents of
-the texture into the GPU so we can draw over what's already there. 
+the texture into the GPU so we can draw over what's already there.
 `storeOp: 'store'` means store the result of what we draw. We could also pass `'discard'`
 which would throw away what we draw. We'll cover why we might want to do that in
 [another article](webgpu-multisampling.html).
 
-Now it's time to render. 
+Now it's time to render.
 
 ```js
   function render() {
@@ -587,7 +583,7 @@ values. We tell it we're going to specify this array on binding location 0 (the
 `binding(0)`) in bindGroup 0 (the `@group(0)`).
 
 Then we declare a function called `computeSomething` with the `@compute`
-attribute which makes it a compute shader. 
+attribute which makes it a compute shader.
 
 ```wgsl
       @compute @workgroup_size(1) fn computeSomething(
@@ -907,7 +903,7 @@ In the code above we go over all the entries but there should only ever be one
 because we're only observing our canvas. We need to limit the size of the canvas
 to the largest size our device supports otherwise WebGPU will start generating
 errors that we tried to make a texture that is too large. We also need to make
-sure it doesn't go to zero or again we'll get errors. 
+sure it doesn't go to zero or again we'll get errors.
 [See the longer article for details](webgpu-resizing-the-canvas.html).
 
 We call `render` to re-render the
@@ -915,7 +911,7 @@ triangle at the new resolution. We removed the old call to `render` because
 it's not needed. A `ResizeObserver` will always call its callback at least once
 to report the size of the elements when they started being observed.
 
-The new size texture is created when we call `context.getCurrentTexture()` 
+The new size texture is created when we call `context.getCurrentTexture()`
 inside `render` so there's nothing left to do.
 
 {{{example url="../webgpu-simple-triangle-with-canvas-resize.html"}}}
@@ -1003,8 +999,3 @@ to succeed but they won't actually function. It's up to you to take action
 when the <code>lost</code> promise resolves.
 </p>
 </div>
-
-
-
-
-
