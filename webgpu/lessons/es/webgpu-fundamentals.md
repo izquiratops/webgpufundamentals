@@ -1,3 +1,5 @@
+<!-- Notas: Usaré las palabras "shader" en vez de "sombreado", "pipeline" en vez de "canalización" y "array" en vez de "vector", "target" en vez de "objetivo" -->
+
 <!-- TODO: Meta -->
 Title: Fundamentos de WebGPU
 Description: Los conceptos más básicos de WebGPU
@@ -383,7 +385,7 @@ las etiqueta relacionada con el error.
 
 En una aplicación normal, tendrías cientos o miles de búferes, texturas, módulos de sombreador, canalizaciones, etc. Si obtienes un error como `"Error de sintaxis WGSL en shaderModule en la línea 10"`, ¿cuál de los 100 módulos de sombreador causó el error? Si etiquetas el módulo, obtendrás un mensaje de error más útil como `"Error de sintaxis WGSL en shaderModule('nuestros sombreadores de triángulo rojo codificados') en la línea 10"`, lo cual es mucho más informativo y te ahorrará mucho tiempo investigando la causa del problema.
 
-Ahora que hemos creado un módulo de sombreador, lo siguiente que necesitamos hacer es crear una canalización (pipeline) de renderizado.
+Ahora que hemos creado un módulo de sombreador, lo siguiente que necesitamos hacer es crear un pipeline (canalización en Castellano) de renderizado.
 
 ```js
   const pipeline = device.createRenderPipeline({
@@ -401,23 +403,20 @@ Ahora que hemos creado un módulo de sombreador, lo siguiente que necesitamos ha
   });
 ```
 
-In this case there isn't much to see. We set `layout` to `'auto'` which means
-to ask WebGPU to derive the layout of data from the shaders. We're not using
-any data though.
+En este caso, no hay mucho que ver. Configuramos `layout` como `'auto'`, lo que significa
+que WebGPU definirá un diseño para todos los recursos (búfers, texturas y demás) en función
+de lo que haya escrito en los shaders.
 
-We then tell the render pipeline to use the `vs` function from our shader module
-for a vertex shader and the `fs` function for our fragment shader. Otherwise we
-tell it the format of the first render target. "render target" means the texture
-we will render to. We create a pipeline
-we have to specify the format for the texture(s) we'll use this pipeline to
-eventually render to.
+Luego, indicamos al render pipeline que utilice la función `vs` de nuestro módulo de shaders
+como un shader de vértices, y la función `fs` como nuestro shader de fragmentos.
+Además, especificamos el formato del primer render objetivo. Cuando hablamos de "render objetivo",
+nos referimos a la textura en la que finalmente renderizamos.
+Cuando creamos un pipeline, debemos especificar el formato de la(s) textura(s) que utilizaremos
+en el pipeline para renderizar.
+El elemento 0 del array `targets` corresponde a la posición 0, tal y como se especificó en el
+valor de retorno del shader de fragmentos. Más adelante, configuraremos ese target para que sea una textura para el lienzo.
 
-Element 0 for the `targets` array corresponds to location 0 as we specified for
-the fragment shader's return value. Later, well set that target to be a texture
-for the canvas.
-
-Next up we prepare a `GPURenderPassDescriptor` which describes which textures
-we want to draw and how to use them.
+A continuación, preparamos un `GPURenderPassDescriptor` que describe qué texturas queremos dibujar y cómo utilizarlas.
 
 ```js
   const renderPassDescriptor = {
@@ -433,18 +432,13 @@ we want to draw and how to use them.
   };  
 ```
 
-A `GPURenderPassDescriptor` has an array for `colorAttachments` which lists
-the textures we will render to and how to treat the textures.
-We'll wait to fill in which texture we actually want to render to. For now,
-we setup a clear value of semi-dark gray, and a `loadOp` and `storeOp`.
-`loadOp: 'clear'` specifies to clear the texture to the clear value before
-drawing. The other option is `'load'` which means load the existing contents of
-the texture into the GPU so we can draw over what's already there.
-`storeOp: 'store'` means store the result of what we draw. We could also pass `'discard'`
-which would throw away what we draw. We'll cover why we might want to do that in
-[another article](webgpu-multisampling.html).
+Un `GPURenderPassDescriptor` tiene un array llamado `colorAttachments`, que enumera las texturas
+se renderizarán y cómo tratarlas. Esperaremos para especificar qué textura queremos representar realmente. Por ahora, configuramos el valor de `clearValue`, `loadOp` y `storeOp`.
 
-Now it's time to render.
+- `loadOp: 'clear'` especifica que se borre la textura al valor de `clearValue` antes de dibujar. La otra opción es `'load'`, que cargaría el contenido existente de la textura en la GPU para que podamos dibujar sobre lo que ya está allí.
+- `storeOp: 'store'` significa almacenar el resultado de lo que dibujamos. También podríamos usar `'discard'`, lo que descartaría lo que dibujamos. Comentaremos cuándo podríamos querer hacer eso en otro artículo.
+
+Ahora es el momento de escribir la función para el render.
 
 ```js
   function render() {
@@ -469,41 +463,31 @@ Now it's time to render.
   render();
 ```
 
-First we call `context.getCurrentTexture()` to get a texture that will appear in the
-canvas. Calling `createView` gets a view into a specific part of a texture but
-with no parameters it will return the default part which is what we want in this
-case. In this case our only `colorAttachment` is a texture view from our
-canvas which we get via the context we created at the start. Again, element 0 of
-the `colorAttachments` array corresponds to `location(0)` as we specified for
-the return value of the fragment shader.
+Primero llamamos a `context.getCurrentTexture()` para obtener una textura que aparecerá en el
+lienzo. Llamar a `createView` obtiene una vista en una parte específica de una textura, pero
+sin parámetros, devolverá la parte predeterminada, que es lo que queremos en este
+caso.
+En este caso, nuestra única `colorAttachment` es una vista de textura de nuestro
+lienzo, que obtenemos a través del contexto que creamos al principio. Nuevamente, el elemento 0 de
+el array `colorAttachments` corresponde a `location(0)`, tal y se especificó para
+el valor de retorno del fragment shader.
 
-Next we create a command encoder. A command encoder is used to create a command
-buffer. We use it to encode commands and then "submit" the command buffer it
-created to have the commands executed.
+A continuación, creamos un codificador de comandos. Un codificador de comandos se utiliza para crear un búfer de comandos. Se utiliza para codificar comandos y luego "enviar" el búfer que creado para que se ejecuten los comandos.
 
-We then use the command encoder to create a render pass encoder by calling `beginRenderPass`. A render
-pass encoder is a specific encoder for creating commands related to rendering.
-We pass it our `renderPassDescriptor` to tell it which texture we want to
-render to.
+<!-- codificador de "render pass" ??? -->
+Luego utilizamos el codificador de comandos para crear un codificador de "render pass" llamando a `beginRenderPass`. Un codificador de render pass es un codificador específico para crear comandos relacionados con el renderizado. Le pasamos nuestro `renderPassDescriptor` para indicarle a qué textura queremos renderizar.
 
-We encode the command, `setPipeline`, to set our pipeline and then tell it to
-execute our vertex shader 3 times by calling `draw` with 3. By default, every 3
-times our vertex shader is executed a triangle will be drawn by connecting the 3
-values just returned from the vertex shader.
+Codificamos el comando `setPipeline` para establecer nuestra pipeline y luego le indicamos que ejecute nuestro shader de vértices 3 veces llamando a `draw` con un valor de entrada 3. Por defecto, cada vez que se ejecuta nuestro shader de vértices 3 veces, se dibujará un triángulo conectando los 3 valores devueltos.
 
-Finally we end the render pass, and then finish the encoder. This gives us a
-command buffer that represents the steps we just specified. Finally we submit
-the command buffer to be executed.
+Finalizamos el render pass y luego concluimos el codificador. Esto devuelve un búfer de comandos que representa los pasos que acabamos de especificar. Finalmente, enviamos el búfer de comandos para que se ejecuten los comandos.
 
-When the `draw` command is executed, this will be our state
+Al ejecutar `draw`, este será nuestro estado:
 
 <div class="webgpu_center"><img src="resources/webgpu-simple-triangle-diagram.svg" style="width: 723px;"></div>
 
-We've got no textures, no buffers, no bindGroups but we do have a pipeline, a
-vertex and fragment shader, and a render pass descriptor that tells our shader
-to render to the the canvas texture.
+En el estado no hay textures, ni búfers, ni bindGroups pero sí hay un pipeline, un vertex shader y un fragment shader y un descriptor de render pass que especifica al shader la textura donde debe renderizar.
 
-The result
+El resultado:
 
 {{{example url="../webgpu-simple-triangle.html"}}}
 
